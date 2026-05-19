@@ -1,26 +1,71 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 
-from api.database import engine
-from api.models import Base
+from api.database import SessionLocal, engine
+from api.mqtt import start_mqtt_listener
+from api.models import AccessLog, Base, User
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(
-    title="RFID API"
+app = FastAPI(title="RFID API")
+
+# CORS for ESP32/dashboard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+# Start MQTT listener as background task
+mqtt_client = start_mqtt_listener()
+
+
+@app.on_event("startup")
+def on_startup():
+    """Start MQTT listener on startup."""
+    import threading
+    mqtt_client.loop_start()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    """Stop MQTT listener on shutdown."""
+    mqtt_client.loop_stop()
 
 
 @app.get("/")
 def home():
-
-    return {
-        "status": "API ONLINE"
-    }
+    return {"status": "API ONLINE"}
 
 
 @app.get("/health")
 def health():
+    return {"service": "ok"}
 
-    return {
-        "service": "ok"
-    }
+
+@app.get("/logs")
+def list_logs(
+    uid: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """List RFID access logs, optionally filtered by uid."""
+    db = SessionLocal()
+    try:
+        query = db.query(AccessLog)
+        if uid:
+            query = query.filter(AccessLog.uid == uid)
+        logs = query.order_by(AccessLog.created_at.desc()).offset(offset).limit(limit).all()
+        return [
+            {
+                "id": log.id,
+                "uid": log.uid,
+                "status": log.status,
+                "rssi": log.rssi,
+                "created_at": log.created_at.isoformat(),
+            }
+            for log in logs
+        ]
+    finally:
+        db.close()
