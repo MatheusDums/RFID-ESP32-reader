@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Acesso RFID - Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glass-bg-decor decor-1"></div>
+    <div class="glass-bg-decor decor-2"></div>
+    <div class="glass-bg-decor decor-3"></div>
+
+    <div class="app-container">
+        <!-- Main Header -->
+        <header class="main-header">
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fa-solid fa-id-card"></i></div>
+                <div class="logo-text">
+                    <h1>RFID Access</h1>
+                    <p>Controle de Acesso em Tempo Real</p>
+                </div>
+            </div>
+
+            <!-- Connection Status Indicators -->
+            <div class="status-panel">
+                <div class="status-indicator" id="status-api">
+                    <span class="status-dot pulse-red"></span>
+                    <span class="status-label">API: <strong id="val-api">Conectando...</strong></span>
+                </div>
+                <div class="status-indicator" id="status-mqtt">
+                    <span class="status-dot pulse-red"></span>
+                    <span class="status-label">MQTT: <strong id="val-mqtt">Carregando...</strong></span>
+                </div>
+                <div class="status-indicator" id="status-ws">
+                    <span class="status-dot pulse-red"></span>
+                    <span class="status-label">WebSocket: <strong id="val-ws">Desconectado</strong></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Grid Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Side: Live Activity & Access logs -->
+            <section class="grid-left">
+                <!-- Last Scanned Card -->
+                <div class="card glass-card last-access-container">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-wifi-pulse text-neon"></i> Última Leitura</h2>
+                        <span class="live-badge"><span class="live-dot"></span> LIVE</span>
+                    </div>
+                    
+                    <div class="last-access-display" id="last-access-display">
+                        <!-- Idle state (no scans yet) -->
+                        <div class="idle-display-state">
+                            <div class="idle-icon"><i class="fa-solid fa-nfc-symbol"></i></div>
+                            <h3>Aguardando Leitura...</h3>
+                            <p>Aproxime uma tag RFID do leitor ESP32 para verificar o acesso.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Access History Logs -->
+                <div class="card glass-card logs-container">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-list-ul"></i> Histórico de Acessos</h2>
+                        <button class="btn-icon" id="btn-clear-logs" title="Limpar logs visuais"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Horário</th>
+                                    <th>Usuário</th>
+                                    <th>UID da Tag</th>
+                                    <th>Status</th>
+                                    <th>Sinal (RSSI)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-tbody">
+                                <!-- Log rows will be dynamically populated here -->
+                                <tr class="no-data-row">
+                                    <td colspan="5">Nenhuma leitura registrada recentemente.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: User management & Form -->
+            <section class="grid-right">
+                <!-- User Registration Form -->
+                <div class="card glass-card form-container">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-user-plus text-neon"></i> Cadastrar Nova Tag</h2>
+                    </div>
+                    <form id="user-form" class="user-registration-form">
+                        <div class="form-group">
+                            <label for="user-name">Nome do Usuário</label>
+                            <div class="input-wrapper">
+                                <i class="fa-regular fa-user"></i>
+                                <input type="text" id="user-name" placeholder="Ex: Matheus Dums" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="user-rfid">UID da Tag RFID</label>
+                                <div class="input-wrapper">
+                                    <i class="fa-solid fa-microchip"></i>
+                                    <input type="text" id="user-rfid" placeholder="Ex: 04A3F91C" required>
+                                </div>
+                                <button type="button" class="btn-inline" id="btn-capture-tag" title="Copiar última tag não registrada">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Capturar Última
+                                </button>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="user-apartment">Apartamento / Setor</label>
+                                <div class="input-wrapper">
+                                    <i class="fa-solid fa-building"></i>
+                                    <input type="text" id="user-apartment" placeholder="Ex: Apto 102">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="user-role">Função / Cargo</label>
+                                <div class="input-wrapper">
+                                    <i class="fa-solid fa-user-shield"></i>
+                                    <select id="user-role">
+                                        <option value="user" selected>Usuário Regular</option>
+                                        <option value="admin">Administrador</option>
+                                        <option value="guest">Visitante</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="user-active" checked>
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="checkbox-label">Tag Ativa / Acesso Liberado</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary">
+                            <i class="fa-solid fa-check"></i> Cadastrar Usuário
+                        </button>
+                    </form>
+                </div>
+
+                <!-- User Management List -->
+                <div class="card glass-card users-container">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-users"></i> Tags Cadastradas</h2>
+                        <span class="user-count-badge" id="user-count">0</span>
+                    </div>
+                    <div class="users-list-scroll">
+                        <div class="users-list" id="users-list-container">
+                            <!-- Users will be dynamically loaded here -->
+                            <div class="no-data-card">
+                                <i class="fa-regular fa-folder-open"></i>
+                                <p>Nenhum usuário cadastrado no banco SQLite.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Toast Notification System -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

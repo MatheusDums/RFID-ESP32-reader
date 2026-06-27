@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 
 from api.config import MQTT_HOST, MQTT_PORT, MQTT_TOPIC
 from api.database import SessionLocal
-from api.models import AccessLog
 
 logger = logging.getLogger(__name__)
 
+# Keep a reference to the active MQTT client instance to publish responses back to the ESP32.
+_client = None
 
 def on_connect(client, userdata, flags, rc):
     """Callback when MQTT connection is established."""
@@ -26,35 +27,19 @@ def on_message(client, userdata, msg):
         payload = json.loads(msg.payload.decode())
 
         uid = str(payload.get("uid", ""))
-        status = str(payload.get("status", "ok"))
         rssi = payload.get("rssi")
-        timestamp = payload.get("timestamp")
 
         if not uid:
             logger.warning("Received MQTT message without uid: %s", msg.payload)
             return
 
-        # Parse timestamp or use current UTC time
-        if timestamp:
-            created_at = datetime.fromisoformat(timestamp)
-        else:
-            created_at = datetime.now(timezone.utc)
-
-        # Insert into database
+        # Process access verification
         db: Session = SessionLocal()
         try:
-            log = AccessLog(
-                uid=uid,
-                status=status,
-                rssi=rssi,
-                created_at=created_at,
-            )
-            db.add(log)
-            db.commit()
-            logger.info("Stored RFID log: uid=%s, status=%s", uid, status)
+            from api.services.access_service import verify_and_log_access
+            verify_and_log_access(db, uid, rssi)
         except Exception:
-            db.rollback()
-            logger.exception("Failed to store RFID log")
+            logger.exception("Failed to process RFID access via MQTT")
         finally:
             db.close()
 
@@ -64,8 +49,28 @@ def on_message(client, userdata, msg):
 
 def start_mqtt_listener():
     """Create and return an MQTT client connected to the broker."""
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.connect(MQTT_HOST, MQTT_PORT, 60)
-    return client
+    global _client
+    _client = mqtt.Client()
+    _client.on_connect = on_connect
+    _client.on_message = on_message
+    try:
+        # Use connect_async to prevent API crash on startup when the broker is offline
+        _client.connect_async(MQTT_HOST, MQTT_PORT, 60)
+        logger.info("Initialized MQTT client connection (async to %s:%d)", MQTT_HOST, MQTT_PORT)
+    except Exception as e:
+        logger.error("Failed to initialize async MQTT connection: %s", e)
+    return _client
+
+
+def publish_message(topic: str, payload: str):
+    """Publish an MQTT message to the broker (used to send responses back to ESP32)."""
+    global _client
+    if _client:
+        try:
+            _client.publish(topic, payload)
+            logger.info("Published to MQTT topic '%s': %s", topic, payload)
+        except Exception as e:
+            logger.error("Failed to publish MQTT message to topic '%s': %s", topic, e)
+    else:
+        logger.warning("MQTT client not initialized, cannot publish message to topic '%s'", topic)
+

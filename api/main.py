@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 from api.database import SessionLocal, engine
 from api.mqtt import start_mqtt_listener
 from api.models import AccessLog, Base, User
+from api.routes.rfid import router as rfid_router
+import api.websocket_manager as ws
 
 Base.metadata.create_all(bind=engine)
 
@@ -17,6 +20,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register routes
+app.include_router(rfid_router)
+
 # Start MQTT listener as background task
 mqtt_client = start_mqtt_listener()
 
@@ -24,7 +30,8 @@ mqtt_client = start_mqtt_listener()
 @app.on_event("startup")
 def on_startup():
     """Start MQTT listener on startup."""
-    import threading
+    # Capture the main asyncio loop for WebSocket broadcasts
+    ws.main_loop = asyncio.get_event_loop()
     mqtt_client.loop_start()
 
 
@@ -32,6 +39,7 @@ def on_startup():
 def on_shutdown():
     """Stop MQTT listener on shutdown."""
     mqtt_client.loop_stop()
+
 
 
 @app.get("/")

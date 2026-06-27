@@ -19,5 +19,6 @@ APP_PORT = int(os.getenv("APP_PORT", 8000))
 MQTT_HOST = os.getenv("MQTT_HOST")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC")
+MQTT_RESPONSE_TOPIC = os.getenv("MQTT_RESPONSE_TOPIC", "rfid/resposta")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db_rfid")
