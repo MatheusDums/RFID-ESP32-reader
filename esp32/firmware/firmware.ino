@@ -57,29 +57,41 @@ const unsigned long scanCooldown = 3000; // Tempo mínimo entre leituras da mesm
 // SETUP & INICIALIZAÇÃO
 // ==========================================
 void setup() {
-  Serial.begin(115200);
-  
-  // Configuração dos Pinos
-  pinMode(LED_GREEN, OUTPUT);
-  pinMode(LED_RED, OUTPUT);
-  pinMode(BUZZER, OUTPUT);
-  
-  digitalWrite(LED_GREEN, LOW);
-  digitalWrite(LED_RED, LOW);
-  digitalWrite(BUZZER, LOW);
-  
-  // Inicialização SPI e Leitor MFRC522
-  SPI.begin();
-  mfrc522.PCD_Init();
-  Serial.println("Leitor RFID MFRC522 inicializado.");
-  
-  // Inicializa Conexões
-  setup_wifi();
-  mqttClient.setServer(mqtt_server, mqtt_port);
-  mqttClient.setCallback(mqtt_callback);
+    Serial.begin(115200);
 
-  // Beep rápido de sucesso ao inicializar hardware
-  beep(1, 100);
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_RED, OUTPUT);
+    pinMode(BUZZER, OUTPUT);
+
+    // Inicializa SPI explicitamente
+    SPI.begin(18, 19, 23, SS_PIN);
+
+    // Inicializa o RC522
+    mfrc522.PCD_Init();
+    delay(100);
+
+    byte version = mfrc522.PCD_ReadRegister(MFRC522::VersionReg);
+
+    Serial.print("Versão do RC522: 0x");
+    Serial.println(version, HEX);
+
+    if (version == 0x00 || version == 0xFF) {
+        Serial.println("ERRO: MFRC522 não encontrado!");
+
+        while (true) {
+            digitalWrite(LED_RED, HIGH);
+            delay(250);
+            digitalWrite(LED_RED, LOW);
+            delay(250);
+        }
+    }
+
+    Serial.println("Leitor RFID inicializado com sucesso.");
+
+    setup_wifi();
+
+    mqttClient.setServer(mqtt_server, mqtt_port);
+    mqttClient.setCallback(mqtt_callback);
 }
 
 // Conexão WiFi
@@ -175,7 +187,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 // LOOP PRINCIPAL
 // ==========================================
 void loop() {
-  if (!WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED) {
     setup_wifi();
   }
   
@@ -186,12 +198,18 @@ void loop() {
   mqttClient.loop();
 
   // Verifica se há novas tags RFID próximas
-  if ( ! mfrc522.PICC_IsNewCardPresent()) {
+  if (!mfrc522.PICC_IsNewCardPresent()) {
     return;
   }
-  if ( ! mfrc522.PICC_ReadCardSerial()) {
-    return;
+
+  Serial.println("Cartão presente!");
+
+  if (!mfrc522.PICC_ReadCardSerial()) {
+      Serial.println("Falhou ao ler serial");
+      return;
   }
+
+  Serial.println("Serial lido!");
 
   // Coleta o UID da tag lida e converte para string hexadecimal
   String rfidUID = "";
