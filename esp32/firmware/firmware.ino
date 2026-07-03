@@ -21,8 +21,10 @@
 // ==========================================
 // CONFIGURAÇÕES DE REDE E MQTT
 // ==========================================
-const char* ssid = "MARCELINO@SIMFIBRA";
-const char* password = "mpimoveis123";
+/* const char* ssid = "MARCELINO@SIMFIBRA";
+const char* password = "mpimoveis123"; */
+const char* ssid = "LABCPS";
+const char* password = "cps2024%";
 const char* mqtt_server = "broker.hivemq.com"; // Usando broker público para testes
 const int mqtt_port = 1883;
 

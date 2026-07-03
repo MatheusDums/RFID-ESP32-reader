@@ -31,14 +31,13 @@ sequenceDiagram
     Dash-->>Dash: Atualiza tela instantaneamente (Som + Visual)
     API->>Broker: Publica decisão (tópico: matheus_rfid/resposta)
     Broker->>ESP: Entrega resultado (JSON)
-    ESP->>ESP: Aciona LEDs e Buzzer correspondentes ao status
 ```
 
 ---
 
 ## 2. Esquema de Ligações de Hardware
 
-O leitor **RFID-RC522**, os LEDs indicadores e o buzzer de feedback sonoro devem ser conectados ao **ESP32** conforme as tabelas a seguir.
+O leitor **RFID-RC522** está conectado ao **ESP32** conforme as tabelas a seguir.
 
 ### 2.1 Conexões do Leitor MFRC522 (Barramento SPI)
 
@@ -51,14 +50,6 @@ O leitor **RFID-RC522**, os LEDs indicadores e o buzzer de feedback sonoro devem
 | **RST** | Reset | **GPIO 22** | Inicialização física/Reset do chip |
 | **GND** | Ground | **GND** | Referência negativa de energia |
 | **3.3V** | Alimentação 3.3V | **3V3** | **ATENÇÃO:** Nunca ligue no 5V (risco de queimar o chip) |
-
-### 2.2 Conexões de LEDs e Buzzer (Feedback de Status)
-
-| Atuador | Pino ESP32 (GPIO) | Função | Esquema Elétrico Recomendado |
-| :--- | :--- | :--- | :--- |
-| **LED Verde** | **GPIO 12** | Acesso Liberado | Conectar em série com resistor de 220 $\Omega$ ou 330 $\Omega$ ao GND |
-| **LED Vermelho** | **GPIO 14** | Acesso Negado / Erro | Conectar em série com resistor de 220 $\Omega$ ou 330 $\Omega$ ao GND |
-| **Buzzer** | **GPIO 27** | Feedback sonoro | Buzzer ativo (5V ou 3.3V) conectado diretamente ao GPIO e ao GND |
 
 ---
 
@@ -78,8 +69,6 @@ O firmware localizado na pasta `esp32/firmware/firmware.ino` é responsável por
    - Lê a força do sinal Wi-Fi (RSSI).
    - Envia um payload JSON para o tópico `matheus_rfid/tags`.
 5. Escutar no tópico `matheus_rfid/resposta` por decisões vindas do backend.
-   - Se o status for `"authorized"`, ativa o LED verde e emite 1 bipe curto (150ms).
-   - Se o status for `"denied"`, ativa o LED vermelho e emite 1 bipe longo (600ms).
 
 ### 3.2 Backend (FastAPI)
 

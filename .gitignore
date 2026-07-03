@@ -1,2 +1,8 @@
 .env
 venv/
+__pycache__/
+DOCUMENTACAO.md
+DOCS_MQTT.md
+DOCUMENTACAO.pdf
+Rfid Esp32 Project Bootstrap Guide.pdf
+.verboo
